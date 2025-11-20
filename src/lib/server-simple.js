@@ -10,6 +10,7 @@ const { Client, LocalAuth } = pkg;
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
+import fetch from 'node-fetch';
 
 dotenv.config();
 
@@ -19,10 +20,17 @@ const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.PORT || 3000);
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const MENTION_CHUNK_SIZE = Number(process.env.MENTION_CHUNK_SIZE || 25);
+const CONVEX_URL = process.env.CONVEX_URL || '';
+const CONVEX_DEPLOY_KEY = process.env.CONVEX_DEPLOY_KEY || '';
 
 const app = express();
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'https://*.vercel.app'],
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:5173', 
+    'https://tagking.vercel.app',
+    'https://*.vercel.app'
+  ],
   credentials: true
 }));
 app.use(express.json());
@@ -33,6 +41,46 @@ const sessions = new Map();
 const wsClients = new Set();
 
 fs.mkdirSync(path.join(process.cwd(), 'sessions'), { recursive: true });
+
+// Send log to Convex
+async function sendLogToConvex(userId, sessionId, action, level, details = {}) {
+  if (!CONVEX_URL) return;
+  try {
+    await fetch(`${CONVEX_URL}/api/mutation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${CONVEX_DEPLOY_KEY}`
+      },
+      body: JSON.stringify({
+        path: 'logs:addLog',
+        args: { userId, sessionId, action, level, details }
+      })
+    });
+  } catch (err) {
+    console.error('Convex log error:', err.message);
+  }
+}
+
+// Update session status in Convex
+async function updateConvexSession(sessionId, status, renderSessionId = null) {
+  if (!CONVEX_URL) return;
+  try {
+    await fetch(`${CONVEX_URL}/api/mutation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${CONVEX_DEPLOY_KEY}`
+      },
+      body: JSON.stringify({
+        path: 'sessions:updateSessionStatus',
+        args: { sessionId, status, renderSessionId }
+      })
+    });
+  } catch (err) {
+    console.error('Convex session update error:', err.message);
+  }
+}
 
 // Broadcast log to all WebSocket clients
 function broadcastLog(message, type = 'info') {
@@ -73,17 +121,31 @@ async function createClientForSession(session) {
     broadcastLog(`📷 QR Code generated - scan with WhatsApp`, 'success');
     session.state = 'qr';
     session.qrDataUrl = await qrcode.toDataURL(qr, { margin: 1, scale: 6 });
+    if (session.userId) {
+      await sendLogToConvex(session.userId, session.id, 'QR Code generated', 'info', {});
+      await updateConvexSession(session.id, 'qr', session.id);
+    }
   });
 
-  client.on('ready', () => {
+  client.on('ready', async () => {
     broadcastLog(`✅ Bot ready! Connected as ${client.info.wid.user}`, 'success');
     session.state = 'open';
     session.qrDataUrl = null;
+    if (session.userId) {
+      await sendLogToConvex(session.userId, session.id, 'Session connected', 'success', {
+        phoneNumber: client.info.wid.user
+      });
+      await updateConvexSession(session.id, 'open', session.id);
+    }
   });
 
-  client.on('authenticated', () => {
+  client.on('authenticated', async () => {
     broadcastLog(`🔐 Authentication successful!`, 'success');
     session.state = 'authenticated';
+    if (session.userId) {
+      await sendLogToConvex(session.userId, session.id, 'Authentication successful', 'success', {});
+      await updateConvexSession(session.id, 'authenticated', session.id);
+    }
   });
 
   client.on('auth_failure', (msg) => {
@@ -158,6 +220,13 @@ async function createClientForSession(session) {
         }
         
         broadcastLog(`✅ Successfully tagged all ${mentions.length} members in "${chat.name}"!`, 'success');
+        if (session.userId) {
+          await sendLogToConvex(session.userId, session.id, 'Tagged all members', 'success', {
+            groupName: chat.name,
+            memberCount: mentions.length,
+            message: msg
+          });
+        }
         return;
       }
       
@@ -198,7 +267,13 @@ async function createSession() {
 // API routes
 app.post('/api/session', bearerAuth, async (req, res) => {
   try {
+    const { userId } = req.body;
     const session = await createSession();
+    if (userId) {
+      session.userId = userId;
+      await sendLogToConvex(userId, session.id, 'Session created', 'info', {});
+      await updateConvexSession(session.id, 'created', session.id);
+    }
     res.json({ id: session.id });
   } catch (e) {
     console.error('Error creating session:', e);
@@ -221,6 +296,15 @@ app.get('/api/session/:id/status', bearerAuth, (req, res) => {
     qrDataUrl: session.qrDataUrl || null,
     me: me
   });
+});
+
+app.get('/api/session/:id/qr', bearerAuth, (req, res) => {
+  const session = sessions.get(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Not found' });
+  if (session.state !== 'qr' || !session.qrDataUrl) {
+    return res.status(400).json({ error: 'No QR code available' });
+  }
+  res.json({ qrDataUrl: session.qrDataUrl });
 });
 
 app.delete('/api/session/:id', bearerAuth, async (req, res) => {

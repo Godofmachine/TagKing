@@ -1,8 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import Image from "next/image";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
 
 interface SessionCardProps {
   session: {
@@ -10,16 +14,51 @@ interface SessionCardProps {
     sessionId: string;
     phoneNumber?: string;
     status: string;
+    renderSessionId?: string;
     _creationTime: number;
   };
 }
 
 export default function SessionCard({ session }: SessionCardProps) {
   const deleteSession = useMutation(api.sessions.deleteSession);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [showQr, setShowQr] = useState(false);
+
+  useEffect(() => {
+    if (session.status === "qr" && session.renderSessionId) {
+      // Fetch QR code from backend
+      const fetchQr = async () => {
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/session/${session.renderSessionId}/qr`);
+          if (res.ok) {
+            const data = await res.json();
+            setQrCode(data.qrDataUrl);
+          }
+        } catch (err) {
+          console.error("Failed to fetch QR:", err);
+        }
+      };
+      fetchQr();
+      const interval = setInterval(fetchQr, 3000); // Poll every 3s
+      return () => clearInterval(interval);
+    }
+  }, [session.status, session.renderSessionId]);
 
   const handleDelete = async () => {
     if (confirm("Are you sure you want to delete this session?")) {
-      await deleteSession({ sessionId: session._id });
+      try {
+        // Delete from backend first
+        if (session.renderSessionId) {
+          await fetch(`${BACKEND_URL}/api/session/${session.renderSessionId}`, {
+            method: "DELETE",
+          });
+        }
+        // Then delete from Convex
+        await deleteSession({ sessionId: session._id });
+      } catch (err) {
+        console.error("Delete failed:", err);
+        alert("Failed to delete session");
+      }
     }
   };
 
@@ -72,12 +111,31 @@ export default function SessionCard({ session }: SessionCardProps) {
         >
           Delete
         </button>
-        {session.status === "qr" && (
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
-            View QR Code
+        {session.status === "qr" && qrCode && (
+          <button
+            onClick={() => setShowQr(!showQr)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+          >
+            {showQr ? "Hide QR" : "View QR Code"}
           </button>
         )}
       </div>
+
+      {/* QR Code Display */}
+      {showQr && qrCode && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-sm text-gray-600 mb-2 text-center">
+            Scan this QR code with WhatsApp
+          </p>
+          <Image
+            src={qrCode}
+            alt="WhatsApp QR Code"
+            width={256}
+            height={256}
+            className="mx-auto"
+          />
+        </div>
+      )}
     </div>
   );
 }

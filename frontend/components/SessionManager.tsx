@@ -6,6 +6,8 @@ import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
 import SessionCard from "./SessionCard";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
+
 export default function SessionManager() {
   const { user } = useUser();
   const [isCreating, setIsCreating] = useState(false);
@@ -19,23 +21,40 @@ export default function SessionManager() {
     currentUser ? { userId: currentUser._id } : "skip"
   );
   const createSession = useMutation(api.sessions.createSession);
+  const getOrCreateUser = useMutation(api.users.getOrCreateUser);
 
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !sessionName.trim()) return;
+    if (!user || !sessionName.trim()) return;
 
     setIsCreating(true);
     try {
-      const sessionId = `session_${Date.now()}_${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
+      // Ensure user exists in Convex
+      const convexUser = await getOrCreateUser({
+        clerkId: user.id,
+        email: user.primaryEmailAddress?.emailAddress || "",
+        name: user.fullName || user.username || "User",
+      });
+
+      // Create session in backend
+      const backendRes = await fetch(`${BACKEND_URL}/api/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: convexUser._id }),
+      });
+
+      if (!backendRes.ok) throw new Error("Backend session creation failed");
+      const { id: renderSessionId } = await backendRes.json();
+
+      // Create session in Convex
       await createSession({
-        userId: currentUser._id,
-        sessionId,
+        userId: convexUser._id,
+        sessionId: renderSessionId,
         phoneNumber: sessionName,
       });
+
       setSessionName("");
-      // TODO: Call backend API to actually create WhatsApp session
+      alert("Session created! Scan the QR code in WhatsApp.");
     } catch (error) {
       console.error("Failed to create session:", error);
       alert("Failed to create session. Please try again.");
