@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default async function Home() {
   const { userId } = await auth();
@@ -11,7 +12,7 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-teal-500 to-yellow-500 dark:from-blue-900 dark:via-teal-800 dark:to-yellow-600">
       {/* Navigation */}
       <nav className="bg-white/10 backdrop-blur-md border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -20,6 +21,7 @@ export default async function Home() {
               <span className="text-2xl font-bold text-white">👑 TagKing</span>
             </div>
             <div className="flex items-center gap-4">
+              <ThemeToggle />
               <Link
                 href="/sign-in"
                 className="text-white hover:text-white/80 transition"
@@ -28,7 +30,7 @@ export default async function Home() {
               </Link>
               <Link
                 href="/sign-up"
-                className="bg-white text-purple-600 px-6 py-2 rounded-full font-semibold hover:bg-white/90 transition"
+                className="bg-white dark:bg-yellow-400 text-blue-600 dark:text-blue-900 px-6 py-2 rounded-full font-semibold hover:bg-white/90 dark:hover:bg-yellow-300 transition"
               >
                 Get Started
               </Link>
@@ -43,14 +45,14 @@ export default async function Home() {
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
             Tag Everyone in Your
             <br />
-            <span className="text-yellow-300">WhatsApp Groups</span>
+            <span className="text-yellow-300 dark:text-yellow-400">WhatsApp Groups</span>
           </h1>
           <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
             Stop typing everyone's name manually. Tag all group members instantly with the @everyone command.
           </p>
           <Link
             href="/sign-up"
-            className="inline-block bg-white text-purple-600 px-8 py-4 rounded-full font-bold text-lg hover:bg-white/90 transition shadow-xl"
+            className="inline-block bg-white dark:bg-yellow-400 text-blue-600 dark:text-blue-900 px-8 py-4 rounded-full font-bold text-lg hover:bg-white/90 dark:hover:bg-yellow-300 transition shadow-xl"
           >
             Start Tagging for Free
           </Link>
