@@ -30,7 +30,7 @@ export default function SessionManager() {
     setIsCreating(true);
     try {
       // Ensure user exists in Convex
-      const convexUser = await getOrCreateUser({
+      const convexUserId = await getOrCreateUser({
         clerkId: user.id,
         email: user.primaryEmailAddress?.emailAddress || "",
         name: user.fullName || user.username || "User",
@@ -40,7 +40,7 @@ export default function SessionManager() {
       const backendRes = await fetch(`${BACKEND_URL}/api/session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: convexUser._id }),
+        body: JSON.stringify({ userId: convexUserId }),
       });
 
       if (!backendRes.ok) throw new Error("Backend session creation failed");
@@ -48,7 +48,7 @@ export default function SessionManager() {
 
       // Create session in Convex
       await createSession({
-        userId: convexUser._id,
+        userId: convexUserId,
         sessionId: renderSessionId,
         phoneNumber: sessionName,
       });
