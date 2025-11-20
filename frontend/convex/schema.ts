@@ -33,6 +33,7 @@ export default defineSchema({
       groupName: v.optional(v.string()),
       memberCount: v.optional(v.number()),
       messagesSent: v.optional(v.number()),
+      message: v.optional(v.string()),
       error: v.optional(v.string()),
     })),
     timestamp: v.number(),
