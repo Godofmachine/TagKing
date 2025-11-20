@@ -1,13 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    turbo: {
-      root: '.',
-    },
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
+  turbopack: {
+    root: '..',
   },
   typescript: {
     ignoreBuildErrors: false,
