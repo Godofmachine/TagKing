@@ -6,11 +6,13 @@ export const createSession = mutation({
   args: {
     userId: v.id("users"),
     sessionId: v.string(),
+    phoneNumber: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("sessions", {
       userId: args.userId,
       sessionId: args.sessionId,
+      phoneNumber: args.phoneNumber,
       status: "created",
       createdAt: Date.now(),
       lastActive: Date.now(),
