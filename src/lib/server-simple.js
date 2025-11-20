@@ -332,6 +332,22 @@ app.get('/api/session/:id/groups', bearerAuth, async (req, res) => {
   });
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    name: 'TagKing WhatsApp Bot',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      session: '/api/session',
+      qr: '/api/session/:id/qr',
+      status: '/api/session/:id/status',
+      groups: '/api/session/:id/groups'
+    }
+  });
+});
+
 // Health check endpoint for monitoring and keep-alive
 app.get('/health', (req, res) => {
   res.json({ 
