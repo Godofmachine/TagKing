@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: whatsapp-bot
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: MENTION_CHUNK_SIZE
+        value: 25
+      - key: RENDER
+        value: true
+    disk:
+      name: whatsapp-sessions
+      mountPath: /opt/render/project/src/sessions
+      sizeGB: 1

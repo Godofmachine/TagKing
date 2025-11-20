@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Group Tagger Bot</title>
+  <script src="config.html"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    .content {
+      padding: 30px;
+    }
+    .section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      border: 1px solid #e9ecef;
+    }
+    .section h2 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #495057;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #667eea;
+      color: white;
+    }
+    .badge.success {
+      background: #28a745;
+    }
+    .badge.warning {
+      background: #ffc107;
+      color: #000;
+    }
+    .badge.danger {
+      background: #dc3545;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: #495057;
+      font-size: 14px;
+    }
+    input[type="text"],
+    input[type="password"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    .qr-container {
+      text-align: center;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+    .qr-container img {
+      max-width: 300px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .info-box {
+      background: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 4px solid #667eea;
+    }
+    .info-label {
+      font-weight: 600;
+      color: #495057;
+      font-size: 14px;
+    }
+    .info-value {
+      font-family: 'Courier New', monospace;
+      color: #667eea;
+      font-size: 14px;
+    }
+    .log-container {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .log-container:empty:before {
+      content: 'No logs yet...';
+      opacity: 0.5;
+    }
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 768px) {
+      .container {
+        margin: 0;
+        border-radius: 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .button-row {
+        flex-direction: column;
+      }
+      button {
+        width: 100%;
+        margin-right: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🤖 WhatsApp Bot Admin</h1>
+      <p>Manage your WhatsApp sessions and broadcast messages</p>
+    </div>
+    
+    <div class="content">
+      <!-- Authentication -->
+      <div class="section">
+        <h2>🔐 Authentication</h2>
+        <div class="input-group">
+          <label for="token">Admin Token (optional)</label>
+          <input type="password" id="token" placeholder="Enter your admin token if required">
+        </div>
+      </div>
+
+      <!-- Session Management -->
+      <div class="section">
+        <h2>📱 Session Management</h2>
+        <div class="info-box">
+          <span class="info-label">Session ID:</span>
+          <span class="info-value" id="sid">Not connected</span>
+        </div>
+        <div class="info-box">
+          <span class="info-label">Status:</span>
+          <span class="badge" id="status">-</span>
+        </div>
+        <div class="info-box">
+          <span class="info-label">Connected as:</span>
+          <span class="info-value" id="me">-</span>
+        </div>
+        
+        <div class="button-row">
+          <button class="btn-primary" id="create">Create New Session</button>
+          <button class="btn-danger" id="deleteBtn" disabled>Delete Session</button>
+        </div>
+
+        <div id="qrRow" style="display: none;">
+          <div class="qr-container">
+            <p style="margin-bottom: 10px; font-weight: 600;">Scan this QR code with WhatsApp:</p>
+            <img id="qr" alt="QR Code">
+          </div>
+        </div>
+      </div>
+
+      <!-- Group Selection -->
+      <div class="section">
+        <h2>👥 Group Selection</h2>
+        <button class="btn-secondary" id="loadGroups" disabled>Load My Groups</button>
+        
+        <div class="input-group" style="margin-top: 15px;">
+          <label for="groups">Select a Group</label>
+          <select id="groups" disabled>
+            <option value="">-- Select a group --</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Message Broadcast -->
+      <div class="section">
+        <h2>📢 Broadcast Message</h2>
+        <div class="input-group">
+          <label for="text">Message (mentions everyone in the group)</label>
+          <textarea id="text" placeholder="Enter your message here...">Attention everyone</textarea>
+        </div>
+        <button class="btn-success" id="send" disabled>Send to Everyone</button>
+      </div>
+
+      <!-- WhatsApp Commands -->
+      <div class="section">
+        <h2>📱 Control from WhatsApp</h2>
+        <p style="margin-bottom: 15px; color: #6c757d; font-size: 14px;">
+          Once connected, you can control the bot directly from WhatsApp:
+        </p>
+        
+        <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #4caf50;">
+          <div style="font-weight: 600; color: #2e7d32; margin-bottom: 8px; font-size: 15px;">
+            🎯 Quick Tag (Inside Group)
+          </div>
+          <div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #66bb6a;">
+            <div style="font-family: 'Courier New', monospace; font-weight: 600; color: #4caf50; margin-bottom: 5px;">
+              @everyone Your message
+            </div>
+            <div style="font-size: 13px; color: #6c757d;">
+              Tag everyone directly in the group chat
+            </div>
+          </div>
+          <div style="background: white; padding: 12px; border-radius: 6px; border-left: 3px solid #66bb6a;">
+            <div style="font-family: 'Courier New', monospace; font-weight: 600; color: #4caf50; margin-bottom: 5px;">
+              /tagall Your message
+            </div>
+            <div style="font-size: 13px; color: #6c757d;">
+              Alternative command for tagging everyone
+            </div>
+          </div>
+          <div style="margin-top: 10px; font-size: 12px; background: #fff; padding: 8px; border-radius: 4px; font-family: 'Courier New', monospace; color: #555;">
+            Example: @everyone Meeting at 3pm today!
+          </div>
+        </div>
+
+        <div style="font-weight: 600; color: #495057; margin-bottom: 10px; font-size: 14px;">
+          Personal Commands (Send to yourself):
+        </div>
+
+        <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #667eea;">
+          <div style="font-family: 'Courier New', monospace; font-weight: 600; color: #667eea; margin-bottom: 5px;">
+            /help
+          </div>
+          <div style="font-size: 13px; color: #6c757d;">
+            Show all available commands and examples
+          </div>
+        </div>
+
+        <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #28a745;">
+          <div style="font-family: 'Courier New', monospace; font-weight: 600; color: #28a745; margin-bottom: 5px;">
+            /listgroups
+          </div>
+          <div style="font-size: 13px; color: #6c757d;">
+            Get a list of all your WhatsApp groups
+          </div>
+        </div>
+
+        <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
+          <div style="font-family: 'Courier New', monospace; font-weight: 600; color: #f0ad4e; margin-bottom: 5px;">
+            /broadcast GroupName | Your message
+          </div>
+          <div style="font-size: 13px; color: #6c757d; margin-bottom: 8px;">
+            Send a message to everyone in a group (with mentions)
+          </div>
+          <div style="font-size: 12px; background: #f8f9fa; padding: 8px; border-radius: 4px; font-family: 'Courier New', monospace;">
+            Example: /broadcast Family | Happy New Year! 🎉
+          </div>
+        </div>
+
+        <div style="margin-top: 15px; padding: 12px; background: #e7f3ff; border-radius: 8px; border-left: 4px solid #0066cc;">
+          <div style="font-size: 13px; color: #0066cc; font-weight: 600; margin-bottom: 4px;">
+            💡 Pro Tips
+          </div>
+          <div style="font-size: 12px; color: #495057; line-height: 1.6;">
+            • Use <strong>@everyone</strong> or <strong>/tagall</strong> directly in the group for quick tags<br>
+            • Send other commands to yourself (saved messages)<br>
+            • You must be an admin to tag everyone
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="section">
+        <h2>📋 Activity Log</h2>
+        <div class="log-container" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
