@@ -24,3 +24,44 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Hide Clerk Development Mode Badge */
+.cl-developmentBadge {
+  display: none !important;
+}
+
+/* Hide Clerk User Button Popover Footer (where dev badge lives) */
+.cl-userButtonPopoverFooter {
+  display: none !important;
+}
+
+/* Hide Clerk Footer (contains branding/dev badge in cards) */
+.cl-footer {
+  display: none !important;
+}
+
+/* Hide Clerk User Profile Footer */
+.cl-userProfile-footer {
+  display: none !important;
+}
+
+/* Hide footer inside modal content if specific class is used */
+.cl-modalContent .cl-footer {
+  display: none !important;
+}
+
+/* Aggressive hiding for all Clerk branding and dev badges */
+div[class*="cl-developmentBadge"],
+div[class*="cl-footer"],
+div[class*="cl-userButtonPopoverFooter"],
+div[class*="cl-userProfile-footer"],
+.cl-rootBox .cl-badge {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+

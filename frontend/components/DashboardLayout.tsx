@@ -47,7 +47,25 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <UserButton afterSignOutUrl="/" />
+              <UserButton 
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    userButtonPopoverCard: "shadow-xl border border-gray-200 dark:border-gray-700",
+                    userButtonPopoverFooter: "hidden",
+                  }
+                }}
+                userProfileProps={{
+                  appearance: {
+                    elements: {
+                      card: "shadow-xl border border-gray-200 dark:border-gray-700",
+                      footer: "hidden",
+                      navbar: "hidden",
+                      developmentBadge: "hidden",
+                    }
+                  }
+                }}
+              />
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
