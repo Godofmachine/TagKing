@@ -53,3 +53,16 @@ export const getSessionLogs = query({
       .take(limit);
   },
 });
+
+// Clear all logs for a user
+export const clearLogs = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const logs = await ctx.db
+      .query("activityLogs")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    
+    await Promise.all(logs.map((log) => ctx.db.delete(log._id)));
+  },
+});

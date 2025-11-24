@@ -1,60 +1,40 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
 import LandingNav from "@/components/LandingNav";
+import HeroSection from "@/components/HeroSection";
 
 export default async function Home() {
   const { userId } = await auth();
 
-  // If user is signed in, redirect to dashboard
-  if (userId) {
-    redirect("/dashboard");
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-teal-500 to-yellow-500 dark:from-blue-900 dark:via-teal-800 dark:to-yellow-600">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-yellow-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900">
       {/* Navigation */}
       <LandingNav />
 
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-        <div className="text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            Tag Everyone in Your
-            <br />
-            <span className="text-yellow-300 dark:text-yellow-400">WhatsApp Groups</span>
-          </h1>
-          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Stop typing everyone's name manually. Tag all group members instantly with the @everyone command.
-          </p>
-          <Link
-            href="/sign-up"
-            className="inline-block bg-white dark:bg-yellow-400 text-blue-600 dark:text-blue-900 px-8 py-4 rounded-full font-bold text-lg hover:bg-white/90 dark:hover:bg-yellow-300 transition shadow-xl"
-          >
-            Start Tagging for Free
-          </Link>
-        </div>
+        <HeroSection />
 
         {/* Features */}
-        <div className="grid md:grid-3 gap-8 mt-20">
-          <div className="bg-white/10 backdrop-blur-md p-8 rounded-2xl border border-white/20">
+        <div className="grid md:grid-cols-3 gap-8 mt-20">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl border border-blue-100 dark:border-blue-900 shadow-lg hover:shadow-xl transition">
             <div className="text-4xl mb-4">⚡</div>
-            <h3 className="text-xl font-bold text-white mb-2">Instant Tagging</h3>
-            <p className="text-white/80">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Instant Tagging</h3>
+            <p className="text-gray-600 dark:text-gray-300">
               Type @everyone and tag all group members in seconds
             </p>
           </div>
-          <div className="bg-white/10 backdrop-blur-md p-8 rounded-2xl border border-white/20">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl border border-teal-100 dark:border-teal-900 shadow-lg hover:shadow-xl transition">
             <div className="text-4xl mb-4">🔒</div>
-            <h3 className="text-xl font-bold text-white mb-2">Admin Only</h3>
-            <p className="text-white/80">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Admin Only</h3>
+            <p className="text-gray-600 dark:text-gray-300">
               Only group admins can use tagging commands for security
             </p>
           </div>
-          <div className="bg-white/10 backdrop-blur-md p-8 rounded-2xl border border-white/20">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl border border-yellow-100 dark:border-yellow-900 shadow-lg hover:shadow-xl transition">
             <div className="text-4xl mb-4">📊</div>
-            <h3 className="text-xl font-bold text-white mb-2">Real-time Logs</h3>
-            <p className="text-white/80">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Real-time Logs</h3>
+            <p className="text-gray-600 dark:text-gray-300">
               Monitor all bot activity with beautiful real-time logs
             </p>
           </div>

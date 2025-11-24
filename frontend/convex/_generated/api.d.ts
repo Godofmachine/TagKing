@@ -10,6 +10,7 @@
 
 import type * as logs from "../logs.js";
 import type * as sessions from "../sessions.js";
+import type * as stats from "../stats.js";
 import type * as users from "../users.js";
 
 import type {
@@ -21,6 +22,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   logs: typeof logs;
   sessions: typeof sessions;
+  stats: typeof stats;
   users: typeof users;
 }>;
 

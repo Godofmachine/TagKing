@@ -1,6 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import Footer from "@/components/Footer";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -21,9 +21,14 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <body className={inter.className}>
-          <ThemeProvider>
-            <ConvexClientProvider>{children}</ConvexClientProvider>
-          </ThemeProvider>
+          <ConvexClientProvider>
+            <div className="flex flex-col min-h-screen">
+              <div className="flex-grow">
+                {children}
+              </div>
+              <Footer />
+            </div>
+          </ConvexClientProvider>
         </body>
       </html>
     </ClerkProvider>

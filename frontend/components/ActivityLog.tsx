@@ -7,12 +7,14 @@ import { useUser } from "@clerk/nextjs";
 export default function ActivityLog() {
   const { user } = useUser();
 
-  const currentUser = useQuery(api.users.getCurrentUser, {
-    clerkId: user?.id || "",
-  });
+  const currentUser = useQuery(
+    api.users.getCurrentUser,
+    user ? { clerkId: user.id } : "skip"
+  );
+
   const logs = useQuery(
     api.logs.getRecentLogs,
-    currentUser ? { userId: currentUser._id, limit: 50 } : "skip"
+    currentUser ? { userId: currentUser._id, limit: 20 } : "skip"
   );
 
   const levelColors = {
@@ -36,7 +38,7 @@ export default function ActivityLog() {
           Activity Log ({logs?.length || 0})
         </h2>
       </div>
-      <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[600px] overflow-y-auto">
+      <div className="divide-y divide-gray-200 dark:divide-gray-700 h-[300px] md:h-[500px] overflow-y-auto">
         {!logs || logs.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-6xl mb-4">📋</div>
