@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node src/lib/server-simple.js",
-    "dev": "node src/lib/server-simple.js"
+    "dev": "node src/lib/server-simple.js",
+    "convex": "cd frontend && npx convex"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.7.0",

@@ -1,11 +1,9 @@
 services:
   - type: web
     name: whatsapp-bot
-    env: node
+    env: docker
     region: oregon
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
     healthCheckPath: /
     envVars:
       - key: PORT
@@ -18,5 +16,5 @@ services:
         value: true
     disk:
       name: whatsapp-sessions
-      mountPath: /opt/render/project/src/sessions
+      mountPath: /usr/src/app/sessions
       sizeGB: 1

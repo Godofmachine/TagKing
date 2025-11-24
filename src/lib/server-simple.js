@@ -11,17 +11,21 @@ import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import fetch from 'node-fetch';
+import { EventEmitter } from 'events';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 3001);
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const MENTION_CHUNK_SIZE = Number(process.env.MENTION_CHUNK_SIZE || 25);
 const CONVEX_URL = process.env.CONVEX_URL || '';
 const CONVEX_DEPLOY_KEY = process.env.CONVEX_DEPLOY_KEY || '';
+
+console.log("CONVEX_URL:", CONVEX_URL);
+console.log("CONVEX_DEPLOY_KEY loaded:", !!CONVEX_DEPLOY_KEY);
 
 const app = express();
 app.use(cors({
@@ -39,24 +43,41 @@ app.use(express.static(path.join(__dirname, '..', '..', 'public')));
 const nanoid = customAlphabet('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz', 10);
 const sessions = new Map();
 const wsClients = new Set();
+const qrEmitter = new EventEmitter();
 
 fs.mkdirSync(path.join(process.cwd(), 'sessions'), { recursive: true });
 
 // Send log to Convex
 async function sendLogToConvex(userId, sessionId, action, level, details = {}) {
-  if (!CONVEX_URL) return;
+  if (!CONVEX_URL) {
+    console.log('Skipping Convex log: CONVEX_URL not set');
+    return;
+  }
   try {
-    await fetch(`${CONVEX_URL}/api/mutation`, {
+    console.log(`Sending log to Convex: ${action} (${level})`);
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    // Only add Authorization if it's a valid-looking token (not a CLI credential with pipe)
+    if (CONVEX_DEPLOY_KEY && !CONVEX_DEPLOY_KEY.includes('|')) {
+      headers['Authorization'] = `Bearer ${CONVEX_DEPLOY_KEY}`;
+    }
+
+    const res = await fetch(`${CONVEX_URL}/api/mutation`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${CONVEX_DEPLOY_KEY}`
-      },
+      headers,
       body: JSON.stringify({
         path: 'logs:addLog',
         args: { userId, sessionId, action, level, details }
       })
     });
+    
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`Convex log failed (${res.status}):`, text);
+    }
   } catch (err) {
     console.error('Convex log error:', err.message);
   }
@@ -64,19 +85,38 @@ async function sendLogToConvex(userId, sessionId, action, level, details = {}) {
 
 // Update session status in Convex
 async function updateConvexSession(sessionId, status, renderSessionId = null) {
-  if (!CONVEX_URL) return;
+  if (!CONVEX_URL) {
+    console.log('Skipping Convex session update: CONVEX_URL not set');
+    return;
+  }
   try {
-    await fetch(`${CONVEX_URL}/api/mutation`, {
+    console.log(`Updating Convex session: ${sessionId} -> ${status}`);
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    // Only add Authorization if it's a valid-looking token (not a CLI credential with pipe)
+    if (CONVEX_DEPLOY_KEY && !CONVEX_DEPLOY_KEY.includes('|')) {
+      headers['Authorization'] = `Bearer ${CONVEX_DEPLOY_KEY}`;
+    }
+
+    const res = await fetch(`${CONVEX_URL}/api/mutation`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${CONVEX_DEPLOY_KEY}`
-      },
+      headers,
       body: JSON.stringify({
         path: 'sessions:updateSessionStatus',
         args: { sessionId, status, renderSessionId }
       })
     });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`Convex session update failed (${res.status}):`, text);
+    } else {
+      const json = await res.json();
+      console.log(`Convex session update success:`, JSON.stringify(json));
+    }
   } catch (err) {
     console.error('Convex session update error:', err.message);
   }
@@ -94,13 +134,6 @@ function broadcastLog(message, type = 'info') {
   console.log(`[${timestamp}] ${message}`);
 }
 
-function bearerAuth(req, res, next) {
-  if (!ADMIN_TOKEN) return next();
-  const auth = (req.headers.authorization || '').split(' ');
-  if (auth[0] === 'Bearer' && auth[1] === ADMIN_TOKEN) return next();
-  res.status(401).json({ error: 'Unauthorized' });
-}
-
 function delay(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function createClientForSession(session) {
@@ -111,11 +144,29 @@ async function createClientForSession(session) {
     }),
     puppeteer: {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]
     }
   });
 
   session.client = client;
+
+  client.on('loading_screen', (percent, message) => {
+    console.log(`[${session.id}] Loading: ${message} ${percent}%`);
+    if (percent === 0) {
+      broadcastLog(`⏳ Starting WhatsApp sync...`, 'info');
+      if (session.userId) {
+        sendLogToConvex(session.userId, session.id, 'Starting WhatsApp sync...', 'info');
+      }
+    }
+  });
 
   client.on('qr', async (qr) => {
     broadcastLog(`📷 QR Code generated - scan with WhatsApp`, 'success');
@@ -249,87 +300,146 @@ async function createClientForSession(session) {
     }
   });
 
-  await client.initialize();
   return session;
 }
 
-async function createSession() {
-  const id = nanoid();
-  const authDir = path.join(process.cwd(), 'sessions', id);
-  fs.mkdirSync(authDir, { recursive: true });
-  const session = { id, state: 'starting', qrDataUrl: null, client: null, authDir };
-  sessions.set(id, session);
-  broadcastLog(`📱 Creating new session: ${id}`, 'info');
-  await createClientForSession(session);
-  return session;
+function createSession(userId) {
+    const id = nanoid();
+    const authDir = path.join(process.cwd(), 'sessions', id);
+    fs.mkdirSync(authDir, { recursive: true });
+    const sessionData = { id, state: 'starting', qrDataUrl: null, client: null, authDir, userId };
+    sessions.set(id, sessionData);
+    broadcastLog(`📱 Creating new session: ${id}`, 'info');
+    
+    // Use the event emitter for QR codes
+    createClientForSession(sessionData).then(initializedSession => {
+        initializedSession.client.on('qr', async (qr) => {
+            console.log(`[${id}] QR RECEIVED (Length: ${qr.length})`);
+            try {
+                const qrDataUrl = await qrcode.toDataURL(qr);
+                console.log(`[${id}] QR Data URL generated (Length: ${qrDataUrl.length}, Prefix: ${qrDataUrl.substring(0, 30)}...)`);
+                qrEmitter.emit(id, { qr: qrDataUrl });
+            } catch (err) {
+                console.error(`[${id}] Error generating QR data URL:`, err);
+                qrEmitter.emit(id, { error: err });
+            }
+        });
+
+        initializedSession.client.on('ready', () => {
+            console.log(`[${id}] Client is ready!`);
+            qrEmitter.emit(id, { ready: true });
+        });
+
+        initializedSession.client.on('auth_failure', (msg) => {
+            console.error(`[${id}] Auth failure: ${msg}`);
+            qrEmitter.emit(id, { error: new Error(`Auth failure: ${msg}`) });
+        });
+
+        initializedSession.client.on('disconnected', (reason) => {
+            console.error(`[${id}] Disconnected: ${reason}`);
+            qrEmitter.emit(id, { error: new Error(`Disconnected: ${reason}`) });
+        });
+
+        console.log(`[${id}] Initializing client...`);
+        initializedSession.client.initialize().catch(err => {
+            console.error(`[${id}] Error during client initialization:`, err);
+            qrEmitter.emit(id, { error: err });
+        });
+    }).catch(err => {
+        console.error(`[${id}] Error during client setup:`, err);
+        qrEmitter.emit(id, { error: err });
+    });
+
+    return id;
+}
+
+function getSession(id) {
+    return sessions.get(id);
 }
 
 // API routes
-app.post('/api/session', bearerAuth, async (req, res) => {
-  try {
-    const { userId } = req.body;
-    const session = await createSession();
-    if (userId) {
-      session.userId = userId;
-      await sendLogToConvex(userId, session.id, 'Session created', 'info', {});
-      await updateConvexSession(session.id, 'created', session.id);
+app.post('/api/session', (req, res) => {
+  const { userId } = req.body;
+  if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+  }
+  console.log(`[API] Received session creation request for userId: ${userId}`);
+  
+  const sessionId = createSession(userId);
+
+  const timeout = setTimeout(() => {
+    qrEmitter.removeAllListeners(sessionId);
+    console.error(`[API] Session creation for ${sessionId} timed out.`);
+    if (!res.headersSent) {
+        res.status(504).json({ error: 'QR code generation timed out.' });
     }
-    res.json({ id: session.id });
-  } catch (e) {
-    console.error('Error creating session:', e);
-    res.status(500).json({ error: e.message });
-  }
-});
+  }, 120000); // 120-second timeout
 
-app.get('/api/session/:id/status', bearerAuth, (req, res) => {
-  const session = sessions.get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Not found' });
-  
-  const me = session.client?.info ? {
-    id: session.client.info.wid.user,
-    pushname: session.client.info.pushname
-  } : null;
-  
-  res.json({
-    id: session.id,
-    state: session.state,
-    qrDataUrl: session.qrDataUrl || null,
-    me: me
+  qrEmitter.once(sessionId, (data) => {
+    clearTimeout(timeout);
+    if (res.headersSent) return;
+
+    if (data.error) {
+      console.error(`[API] Error creating session ${sessionId}:`, data.error.message);
+      res.status(500).json({ error: data.error.message });
+    } else if (data.ready) {
+      console.log(`[API] Session ${sessionId} is ready. No QR code needed.`);
+      res.json({ id: sessionId, qr: null });
+    } else {
+      console.log(`[API] Sending QR code for session ${sessionId}`);
+      res.json({ id: sessionId, qr: data.qr });
+    }
   });
 });
 
-app.get('/api/session/:id/qr', bearerAuth, (req, res) => {
-  const session = sessions.get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Not found' });
-  if (session.state !== 'qr' || !session.qrDataUrl) {
-    return res.status(400).json({ error: 'No QR code available' });
-  }
-  res.json({ qrDataUrl: session.qrDataUrl });
+app.get('/api/session/:id', (req, res) => {
+    const sessionData = getSession(req.params.id);
+    if (sessionData && sessionData.client) {
+        const clientInfo = sessionData.client.info;
+        res.json({ id: sessionData.id, userId: sessionData.userId, ready: !!clientInfo });
+    } else {
+        res.status(404).json({ error: 'Session not found or not fully initialized' });
+    }
 });
 
-app.delete('/api/session/:id', bearerAuth, async (req, res) => {
-  const session = sessions.get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Not found' });
-  try {
-    sessions.delete(req.params.id);
-    if (session.client) await session.client.destroy();
-    await fs.promises.rm(session.authDir, { recursive: true, force: true });
-    res.json({ ok: true });
-  } catch (e) {
-    console.error('Error deleting session:', e);
-    res.status(500).json({ error: e.message });
-  }
+app.get('/api/session/:id/qr', (req, res) => {
+    const sessionData = getSession(req.params.id);
+    if (sessionData && sessionData.qrDataUrl) {
+        res.json({ qrDataUrl: sessionData.qrDataUrl });
+    } else {
+        res.status(404).json({ error: 'QR code not available' });
+    }
 });
 
-app.get('/api/session/:id/groups', bearerAuth, async (req, res) => {
-  const session = sessions.get(req.params.id);
-  if (!session || session.state !== 'open') {
-    return res.status(400).json({ error: 'Session not ready' });
-  }
-  res.json({ 
-    groups: [],
-    message: 'Use @everyone or /tagall directly in WhatsApp groups'
-  });
+app.delete('/api/session/:id', async (req, res) => {
+    const sessionId = req.params.id;
+    const sessionData = getSession(sessionId);
+
+    if (!sessionData) {
+        return res.status(404).json({ error: 'Session not found' });
+    }
+
+    try {
+        if (sessionData.client) {
+            console.log(`[${sessionId}] Destroying client...`);
+            await sessionData.client.destroy();
+        }
+        
+        // Remove from sessions map
+        sessions.delete(sessionId);
+        
+        // Clean up session directory
+        const sessionDir = path.join(process.cwd(), 'sessions', sessionId);
+        if (fs.existsSync(sessionDir)) {
+            fs.rmSync(sessionDir, { recursive: true, force: true });
+        }
+
+        broadcastLog(`🗑️ Session ${sessionId} deleted`, 'warning');
+        res.json({ success: true, message: 'Session deleted successfully' });
+    } catch (error) {
+        console.error(`[${sessionId}] Error deleting session:`, error);
+        res.status(500).json({ error: 'Failed to delete session' });
+    }
 });
 
 // Root endpoint
